@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login']]);
+        $this->middleware('auth', ['except' => ['login', 'payload']]);
     }
 
     // 登入並回傳 jwt Token
@@ -18,10 +19,10 @@ class AuthController extends Controller
 
         // TODO: 了解 guard 怎麼切換
         // 因為 guard 換成 jwt, attempt function 的位置在 Tymon\JWTAuth\JWTGuard;
-        if (!$token = auth()->attempt($credentials)) {
+        // 嘗試用 request 中的參數認證使用者
+        if (!$token = auth()->claims(['test' => '123444'])->attempt($credentials)) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
-
         return $this->respondWithToken($token);
     }
 
@@ -36,7 +37,6 @@ class AuthController extends Controller
     public function logout()
     {
         auth()->logout();
-
         return response()->json(['message' => 'Successfully logged out']);
     }
 
@@ -50,11 +50,24 @@ class AuthController extends Controller
     // factory 在 \Tymon\JwtAuth\Factory
     protected function respondWithToken($token)
     {
-        dd(auth());
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
             'expires_in' => auth()->factory()->getTTL() * 60
         ]);
+    }
+
+
+    public function payload()
+    {
+        $payload = auth()->payload();
+        return response()->json($payload);
+    }
+
+    // 提供帳密 和 jwt 做驗證
+    public function jwtValidate()
+    {
+        $credentials = request(['email', 'password']);
+        return auth()->validate($credentials)==true ? auth()->validate($credentials) : response()->json(['message' => 'failed']);
     }
 }
